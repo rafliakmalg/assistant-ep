@@ -14,6 +14,12 @@ return [
     |
     */
 
+    'assistant' => [
+        'providers' => collect(explode(',', (string) env('ASSISTANT_PROVIDERS', 'deepseek:deepseek-v4-pro,gemini:gemini-3-flash-preview')))
+            ->mapWithKeys(fn (string $pair) => [explode(':', trim($pair), 2)[0] => explode(':', trim($pair), 2)[1]])
+            ->all(),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
