@@ -15,6 +15,7 @@ class ChatController extends Controller
     {
         $param = $request->validated();
         $client = $request->attributes->get('client');
+        $permissions = $request->attributes->get('permissions');
         $site = $request->attributes->get('site');
         $user = $request->attributes->get('user');
         $type = Conversation::participantType($user);
@@ -31,7 +32,7 @@ class ChatController extends Controller
         $prompt = isset($param['decisions']) ? Decisions::from($param['decisions']) : $param['message'];
 
         $agentClass = config("sites.drivers.{$site->driver}.agent");
-        $agent = $agentClass::make(client: $client, user: $user)->continue($conversationId, as: $user);
+        $agent = $agentClass::make(client: $client, permissions: $permissions, user: $user)->continue($conversationId, as: $user);
 
         $stream = $agent
             ->stream($prompt, provider: config('services.assistant.providers'))

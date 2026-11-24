@@ -20,4 +20,9 @@ class GetAdjustments extends ListTool
     {
         return 'adjustments';
     }
+
+    public function permission(): ?string
+    {
+        return 'adjustment.read';
+    }
 }

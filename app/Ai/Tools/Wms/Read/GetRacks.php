@@ -20,4 +20,9 @@ class GetRacks extends ListTool
     {
         return 'racks';
     }
+
+    public function permission(): ?string
+    {
+        return 'rack.read';
+    }
 }

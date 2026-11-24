@@ -16,7 +16,6 @@ return new class extends Migration
             $table->timestamps();
             $table->string('code')->unique();
             $table->string('driver');
-            $table->json('identity')->nullable();
             $table->string('name');
             $table->string('url');
             $table->boolean('active')->default(true);

@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Contracts\SiteClient;
-use App\Models\Site;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
@@ -52,33 +51,5 @@ class WmsClient implements SiteClient
         ];
 
         return json_encode($result, JSON_UNESCAPED_UNICODE);
-    }
-
-    public function user(Site $site): ?array
-    {
-        $fields = $site->identity['fields'];
-
-        try {
-            $response = $this->request()->get($site->identity['endpoint']);
-        } catch (ConnectionException) {
-            abort(503, __('index.wms.unreachable'));
-        }
-
-        if ($response->failed()) {
-            return null;
-        }
-
-        $id = $response->json($fields['id']);
-        $name = $response->json($fields['name']);
-
-        if ($id === null || $name === null) {
-            return null;
-        }
-
-        return [
-            'id' => $id,
-            'name' => $name,
-            'role' => isset($fields['role']) ? $response->json($fields['role']) : null,
-        ];
     }
 }

@@ -20,4 +20,9 @@ class GetMovements extends ListTool
     {
         return 'movements';
     }
+
+    public function permission(): ?string
+    {
+        return 'movement.read';
+    }
 }

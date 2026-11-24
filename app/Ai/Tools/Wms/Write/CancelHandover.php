@@ -25,4 +25,9 @@ class CancelHandover extends ActionTool
     {
         return 'handovers/'.$request['id'].'/cancel';
     }
+
+    public function permission(): ?string
+    {
+        return 'handover.cancel';
+    }
 }

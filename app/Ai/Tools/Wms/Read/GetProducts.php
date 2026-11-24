@@ -20,4 +20,9 @@ class GetProducts extends ListTool
     {
         return 'products';
     }
+
+    public function permission(): ?string
+    {
+        return 'product.read';
+    }
 }

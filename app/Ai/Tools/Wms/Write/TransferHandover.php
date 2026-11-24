@@ -26,4 +26,9 @@ class TransferHandover extends ActionTool
     {
         return 'handovers/'.$request['id'].'/transfer';
     }
+
+    public function permission(): ?string
+    {
+        return 'handover.transfer';
+    }
 }

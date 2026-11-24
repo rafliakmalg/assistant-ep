@@ -8,4 +8,6 @@ use Laravel\Ai\Contracts\Tool;
 abstract class WmsTool implements Tool
 {
     public function __construct(protected WmsClient $client) {}
+
+    abstract public function permission(): ?string;
 }

@@ -32,4 +32,9 @@ class CreateHandover extends ActionTool
     {
         return 'handovers';
     }
+
+    public function permission(): ?string
+    {
+        return 'handover.create';
+    }
 }

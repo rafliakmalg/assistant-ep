@@ -6,50 +6,11 @@ use App\Ai\Agents\WmsAssistant;
 use App\Models\Site;
 use App\Models\SiteUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Client\Factory;
-use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class ChatTest extends TestCase
 {
     use RefreshDatabase;
-
-    private function createCustomSite(): void
-    {
-        Site::factory()->create([
-            'code' => 'toko',
-            'identity' => [
-                'endpoint' => 'me',
-                'fields' => [
-                    'id' => 'user.uid',
-                    'name' => 'user.full_name',
-                ],
-            ],
-            'url' => 'http://toko.test/api',
-        ]);
-    }
-
-    private function fakeMe(int|string $id = 5, string $role = 'operator'): void
-    {
-        Http::swap(new Factory);
-        Http::fake([
-            '*/auth/me' => Http::response([
-                'data' => [
-                    'id' => $id,
-                    'name' => 'Budi',
-                    'role' => ['name' => $role],
-                ],
-            ]),
-        ]);
-    }
-
-    private function headers(string $site = 'wms'): array
-    {
-        return [
-            'Authorization' => 'Bearer token',
-            'X-Site' => $site,
-        ];
-    }
 
     protected function setUp(): void
     {
@@ -61,35 +22,32 @@ class ChatTest extends TestCase
     public function test_chat_accepts_string_user_ids_from_other_sites(): void
     {
         WmsAssistant::fake(['Halo']);
-        $this->fakeMe('u-7f3a9c');
 
-        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers())->assertOk();
+        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers(['sub' => 'u-7f3a9c']))->assertOk();
 
         $this->assertDatabaseHas('site_users', ['external_id' => 'u-7f3a9c']);
     }
 
-    public function test_chat_rejects_identity_response_without_mapped_fields(): void
+    public function test_chat_rejects_expired_token(): void
     {
-        $this->createCustomSite();
-        Http::swap(new Factory);
-        Http::fake(['*/me' => Http::response(['user' => ['full_name' => 'Sari']])]);
-
-        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers('toko'))->assertStatus(401);
+        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers(['exp' => time() - 120]))
+            ->assertStatus(401)
+            ->assertJsonPath('message', 'Token tidak valid.');
     }
 
     public function test_chat_rejects_inactive_site(): void
     {
-        $this->fakeMe();
         Site::query()->update(['active' => false]);
 
         $this->postJson('/api/chat', ['message' => 'halo'], $this->headers())->assertStatus(422);
     }
 
-    public function test_chat_rejects_invalid_token(): void
+    public function test_chat_rejects_malformed_token(): void
     {
-        Http::fake(['*/auth/me' => Http::response([], 401)]);
-
-        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers())
+        $this->postJson('/api/chat', ['message' => 'halo'], [
+            'Authorization' => 'Bearer bukan-jwt',
+            'X-Site' => 'wms',
+        ])
             ->assertStatus(401)
             ->assertJsonPath('message', 'Token tidak valid.');
     }
@@ -102,54 +60,52 @@ class ChatTest extends TestCase
     public function test_chat_rejects_other_users_conversation(): void
     {
         WmsAssistant::fake(['Halo']);
-        $this->fakeMe(5);
-        $conversationId = $this->postJson('/api/chat', ['message' => 'halo'], $this->headers())
+        $conversationId = $this->postJson('/api/chat', ['message' => 'halo'], $this->headers(['sub' => 5]))
             ->headers
             ->get('X-Conversation-Id');
-
-        $this->fakeMe(6);
 
         $this->postJson('/api/chat', [
             'conversation_id' => $conversationId,
             'message' => 'halo lagi',
-        ], $this->headers())->assertStatus(404);
+        ], $this->headers(['sub' => 6]))->assertStatus(404);
     }
 
     public function test_chat_rejects_site_with_unsupported_driver(): void
     {
-        $this->fakeMe();
         Site::factory()->create([
             'code' => 'lain',
             'driver' => 'other',
         ]);
 
-        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers('lain'))
+        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers(site: 'lain'))
             ->assertStatus(422)
             ->assertJsonPath('message', 'Site ini belum didukung.');
     }
 
+    public function test_chat_rejects_token_signed_with_another_key(): void
+    {
+        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers(signingKey: 'foreign-private'))
+            ->assertStatus(401)
+            ->assertJsonPath('message', 'Token tidak valid.');
+    }
+
     public function test_chat_rejects_unknown_site(): void
     {
-        $this->fakeMe();
-
-        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers('lain'))
+        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers(site: 'lain'))
             ->assertStatus(422)
             ->assertJsonPath('message', 'Site tidak dikenal.');
     }
 
     public function test_chat_requires_message_or_decisions(): void
     {
-        $this->fakeMe();
-
         $this->postJson('/api/chat', [], $this->headers())->assertStatus(422);
     }
 
     public function test_chat_streams_and_stores_conversation_for_site_user(): void
     {
         WmsAssistant::fake(['Halo Budi']);
-        $this->fakeMe();
 
-        $response = $this->postJson('/api/chat', ['message' => 'halo'], $this->headers());
+        $response = $this->postJson('/api/chat', ['message' => 'halo'], $this->headers(['roles' => ['operator', 'supervisor']]));
 
         $response->assertOk();
         $this->assertStringContainsString('"delta":"Halo"', $response->streamedContent());
@@ -158,7 +114,7 @@ class ChatTest extends TestCase
 
         $this->assertDatabaseHas('site_users', [
             'name' => 'Budi',
-            'role' => 'operator',
+            'role' => 'operator, supervisor',
             'site_id' => $siteUser->site_id,
         ]);
         $this->assertDatabaseHas('agent_conversations', [
@@ -170,11 +126,9 @@ class ChatTest extends TestCase
     public function test_chat_updates_site_user_profile_without_duplicating_row(): void
     {
         WmsAssistant::fake(['Halo', 'Halo lagi']);
-        $this->fakeMe(5, 'operator');
-        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers())->assertOk();
+        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers(['roles' => ['operator']]))->assertOk();
 
-        $this->fakeMe(5, 'supervisor');
-        $this->postJson('/api/chat', ['message' => 'halo lagi'], $this->headers())->assertOk();
+        $this->postJson('/api/chat', ['message' => 'halo lagi'], $this->headers(['roles' => ['supervisor']]))->assertOk();
 
         $this->assertDatabaseCount('site_users', 1);
         $this->assertDatabaseHas('site_users', [
@@ -183,54 +137,30 @@ class ChatTest extends TestCase
         ]);
     }
 
-    public function test_chat_uses_identity_mapping_of_the_site(): void
-    {
-        WmsAssistant::fake(['Halo']);
-        $this->createCustomSite();
-        Http::swap(new Factory);
-        Http::fake(['*/me' => Http::response(['user' => ['full_name' => 'Sari', 'uid' => 77]])]);
-
-        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers('toko'))->assertOk();
-
-        $this->assertDatabaseHas('site_users', [
-            'external_id' => '77',
-            'name' => 'Sari',
-            'role' => null,
-        ]);
-    }
-
     public function test_conversation_detail_rejects_other_user_and_site(): void
     {
         WmsAssistant::fake(['Halo']);
-        $this->fakeMe(5);
-        $conversationId = $this->postJson('/api/chat', ['message' => 'halo'], $this->headers())
+        $conversationId = $this->postJson('/api/chat', ['message' => 'halo'], $this->headers(['sub' => 5]))
             ->headers
             ->get('X-Conversation-Id');
 
-        $this->fakeMe(5);
-        $this->getJson("/api/conversations/{$conversationId}", $this->headers())->assertOk();
-
-        $this->fakeMe(6);
-        $this->getJson("/api/conversations/{$conversationId}", $this->headers())->assertStatus(404);
+        $this->getJson("/api/conversations/{$conversationId}", $this->headers(['sub' => 5]))->assertOk();
+        $this->getJson("/api/conversations/{$conversationId}", $this->headers(['sub' => 6]))->assertStatus(404);
 
         Site::factory()->create([
             'code' => 'lain',
             'url' => 'http://lain.test/api',
         ]);
-        $this->fakeMe(5);
-        $this->getJson("/api/conversations/{$conversationId}", $this->headers('lain'))->assertStatus(404);
+
+        $this->getJson("/api/conversations/{$conversationId}", $this->headers(['sub' => 5], 'lain'))->assertStatus(404);
     }
 
     public function test_conversations_are_listed_per_site_user(): void
     {
         WmsAssistant::fake(['Halo']);
-        $this->fakeMe(5);
-        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers());
+        $this->postJson('/api/chat', ['message' => 'halo'], $this->headers(['sub' => 5]));
 
-        $this->fakeMe(5);
-        $this->getJson('/api/conversations', $this->headers())->assertOk()->assertJsonCount(1, 'data');
-
-        $this->fakeMe(6);
-        $this->getJson('/api/conversations', $this->headers())->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson('/api/conversations', $this->headers(['sub' => 5]))->assertOk()->assertJsonCount(1, 'data');
+        $this->getJson('/api/conversations', $this->headers(['sub' => 6]))->assertOk()->assertJsonCount(0, 'data');
     }
 }

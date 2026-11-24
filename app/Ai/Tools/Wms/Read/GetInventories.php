@@ -20,4 +20,9 @@ class GetInventories extends ListTool
     {
         return 'inventories';
     }
+
+    public function permission(): ?string
+    {
+        return 'inventory.read';
+    }
 }

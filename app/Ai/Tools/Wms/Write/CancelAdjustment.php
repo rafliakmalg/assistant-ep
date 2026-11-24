@@ -24,4 +24,9 @@ class CancelAdjustment extends ActionTool
     {
         return 'adjustments/'.$request['id'].'/cancel';
     }
+
+    public function permission(): ?string
+    {
+        return 'adjustment.cancel';
+    }
 }

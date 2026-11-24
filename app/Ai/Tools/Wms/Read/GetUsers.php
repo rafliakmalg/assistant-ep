@@ -13,11 +13,16 @@ class GetUsers extends ListTool
 
     protected function fields(): array
     {
-        return ['active', 'created_at', 'email', 'name', 'role_id', 'username'];
+        return ['active', 'created_at', 'name'];
     }
 
     protected function path(): string
     {
         return 'users';
+    }
+
+    public function permission(): ?string
+    {
+        return null;
     }
 }

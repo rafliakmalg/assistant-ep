@@ -2,6 +2,7 @@
 
 namespace App\Ai\Agents;
 
+use App\Ai\Tools\Wms\Base\WmsTool;
 use App\Ai\Tools\Wms\Read\GetAdjustment;
 use App\Ai\Tools\Wms\Read\GetAdjustments;
 use App\Ai\Tools\Wms\Read\GetHandover;
@@ -41,6 +42,7 @@ class WmsAssistant implements Agent, Conversational, HasTools
     public function __construct(
         private WmsClient $client,
         private SiteUser $user,
+        private array $permissions = [],
     ) {}
 
     public function instructions(): Stringable|string
@@ -61,6 +63,7 @@ class WmsAssistant implements Agent, Conversational, HasTools
         - Aksi yang mengubah data memerlukan persetujuan pengguna; kamu tidak perlu meminta konfirmasi lewat teks. Isi ringkasan dengan satu kalimat natural yang menyebut nama barang, rack, dan jumlah.
         - Jangan menyarankan atau memilih sendiri barang, jumlah, atau rack tujuan. Jika pengguna belum menyebutkannya, tanyakan singkat lewat chat.
         - Jangan menyebut id, nama tool, atau detail teknis kepada pengguna.
+        - Kamu hanya diberi tool untuk hal yang boleh dilakukan pengguna ini. Jika permintaan tidak bisa dipenuhi dengan tool yang tersedia, katakan bahwa pengguna tidak memiliki akses untuk itu dan jangan mencoba cara lain.
         - Jika tool mengembalikan status 403, 422, atau error lain, jelaskan alasannya kepada pengguna dengan bahasa yang mudah dipahami. Jangan mencoba cara lain untuk menghindarinya.
         TEXT;
     }
@@ -72,7 +75,7 @@ class WmsAssistant implements Agent, Conversational, HasTools
 
     public function tools(): iterable
     {
-        return [
+        $tools = [
             new CancelAdjustment($this->client),
             new CancelHandover($this->client),
             new CompleteHandover($this->client),
@@ -91,5 +94,10 @@ class WmsAssistant implements Agent, Conversational, HasTools
             new GetWarehouses($this->client),
             new TransferHandover($this->client),
         ];
+
+        return array_values(array_filter(
+            $tools,
+            fn (WmsTool $tool) => $tool->permission() === null || in_array($tool->permission(), $this->permissions, true),
+        ));
     }
 }

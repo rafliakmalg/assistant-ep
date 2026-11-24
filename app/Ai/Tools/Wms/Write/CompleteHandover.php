@@ -25,4 +25,9 @@ class CompleteHandover extends ActionTool
     {
         return 'handovers/'.$request['id'].'/complete';
     }
+
+    public function permission(): ?string
+    {
+        return 'handover.complete';
+    }
 }

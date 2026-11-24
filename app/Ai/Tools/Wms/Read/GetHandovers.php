@@ -20,4 +20,9 @@ class GetHandovers extends ListTool
     {
         return 'handovers';
     }
+
+    public function permission(): ?string
+    {
+        return 'handover.read';
+    }
 }

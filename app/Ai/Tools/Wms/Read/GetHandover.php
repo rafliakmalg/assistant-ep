@@ -15,4 +15,9 @@ class GetHandover extends ShowTool
     {
         return 'handovers';
     }
+
+    public function permission(): ?string
+    {
+        return 'handover.read';
+    }
 }

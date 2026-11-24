@@ -20,4 +20,9 @@ class GetWarehouses extends ListTool
     {
         return 'warehouses';
     }
+
+    public function permission(): ?string
+    {
+        return 'warehouse.read';
+    }
 }

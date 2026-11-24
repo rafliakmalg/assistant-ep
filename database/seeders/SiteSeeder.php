@@ -13,7 +13,6 @@ class SiteSeeder extends Seeder
             ['code' => 'wms'],
             [
                 'driver' => Site::DRIVER_WMS,
-                'identity' => Site::wmsIdentity(),
                 'name' => 'Sun Logistic WMS',
                 'url' => 'http://wms-ep.test/api',
             ],

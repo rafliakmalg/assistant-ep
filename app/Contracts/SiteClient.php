@@ -2,12 +2,15 @@
 
 namespace App\Contracts;
 
-use App\Models\Site;
-
 interface SiteClient
 {
     /**
-     * @return array{id: int|string, name: string, role: string|null}|null
+     * @param  array<string, mixed>  $query
      */
-    public function user(Site $site): ?array;
+    public function get(string $path, array $query = []): string;
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function post(string $path, array $data = []): string;
 }

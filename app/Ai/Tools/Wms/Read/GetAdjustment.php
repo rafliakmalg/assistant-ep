@@ -15,4 +15,9 @@ class GetAdjustment extends ShowTool
     {
         return 'adjustments';
     }
+
+    public function permission(): ?string
+    {
+        return 'adjustment.read';
+    }
 }

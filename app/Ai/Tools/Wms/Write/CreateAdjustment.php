@@ -32,4 +32,9 @@ class CreateAdjustment extends ActionTool
     {
         return 'adjustments';
     }
+
+    public function permission(): ?string
+    {
+        return 'adjustment.create';
+    }
 }

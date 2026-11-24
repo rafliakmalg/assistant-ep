@@ -18,7 +18,6 @@ class SiteFactory extends Factory
         return [
             'code' => 'wms',
             'driver' => Site::DRIVER_WMS,
-            'identity' => Site::wmsIdentity(),
             'name' => 'WMS',
             'url' => 'http://wms.test/api',
         ];

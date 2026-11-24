@@ -28,4 +28,9 @@ class CreateMovement extends ActionTool
     {
         return 'movements';
     }
+
+    public function permission(): ?string
+    {
+        return 'movement.create';
+    }
 }
